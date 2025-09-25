@@ -6,9 +6,7 @@ set "CONFIG_FILE=%~dp0git_backup_config.txt"
 
 REM Step 1: Get base project directory – load from config if exists, else prompt and save
 if exist "%CONFIG_FILE%" (
-    for /f "delims=" %%a in ('type "%CONFIG_FILE%"') do set "base_project_directory=%%a"
-    REM Trim trailing spaces from base_project_directory
-    for /l %%i in (1,1,31) do if "!base_project_directory:~-1!"==" " set "base_project_directory=!base_project_directory:~0,-1!"
+    for /f "delims=" %%a in ("%CONFIG_FILE%") do set "base_project_directory=%%a"
     ECHO Loaded base project directory from config: !base_project_directory!
 ) else (
     set /p base_project_directory="Enter Base project DIRECTORY for whole file structure: "
@@ -32,7 +30,7 @@ if exist "%GITHUB_PAT%" set "PREVIOUS_RUN=YES"
 REM Step 6: Initialize token empty
 set "token="
 
-REM Step 7: If file exists, try to load token
+REM Step 7: If file exists, try to load token and trim trailing spaces
 if exist "%GITHUB_PAT%" (
     for /f "delims=" %%a in ('type "%GITHUB_PAT%"') do set "token=%%a"
     REM Trim trailing spaces from token
