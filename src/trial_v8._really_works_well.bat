@@ -149,33 +149,13 @@ if "!PREVIOUS_RUN!"=="YES" (
     git status --porcelain
     git diff --staged --quiet 2>nul
     if errorlevel 1 (
-        REM Detect deletions and prompt for restoration
-        set "has_deletions=0"
-        for /f "tokens=1,*" %%a in ('git status --porcelain') do (
-            if "%%a"=="D" (
-                set "has_deletions=1"
-                echo Detected deletion: %%b
-                set /p restore_choice="Was this deletion intentional? (y/n): "
-                if /i "!restore_choice!"=="n" (
-                    echo Restoring %%b from repo...
-                    git restore "%%b"
-                )
-            )
-        )
-        REM Re-check if changes still exist after potential restores
-        git diff --staged --quiet 2>nul
+        git commit -m "Backup run"
         if errorlevel 1 (
-            git commit -m "Backup run"
-            if errorlevel 1 (
-                echo [DEBUG] Commit failed despite staged changes. Check output above.
-                echo No changes to commit due to commit failure.
-            ) else (
-                echo [DEBUG] Commit successful - changes committed.
-                echo Changes committed!
-            )
+            echo [DEBUG] Commit failed despite staged changes. Check output above.
+            echo No changes to commit due to commit failure.
         ) else (
-            echo [DEBUG] No changes after restorations.
-            echo No changes to commit.
+            echo [DEBUG] Commit successful - changes committed.
+            echo Changes committed!
         )
     ) else (
         echo [DEBUG] No changes detected.
