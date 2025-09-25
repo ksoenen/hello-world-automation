@@ -13,7 +13,7 @@ def load_config():
         return json.load(f)
 
 def main(input_file=None):
-    print("Hello World! This is a sample program - hope fully try 16 the golden ticket it will it will..")
+    print("Hello World! This is a sample program - first round finally working, let us hope 2nd round works it will it will..")
     if input_file:
         print(f"Processing: {input_file}")
     # Add more based on purpose
