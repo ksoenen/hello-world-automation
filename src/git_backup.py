@@ -10,6 +10,22 @@ REPO_NAME = "hello-world-automation"
 GITHUB_USERNAME = "ksoenen"  # Replace with your GitHub username if different
 API_URL = f"https://api.github.com/repos/{GITHUB_USERNAME}/{REPO_NAME}"
 USER_REPOS_URL = "https://api.github.com/user/repos"
+GITIGNORE_CONTENT = """
+build/
+dist/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+"""
+
+def main_menu():
+    print("\nGit Backup Menu:")
+    print("1. Run full backup (auto commit and push all changes)")
+    print("2. View changes summary (no commit)")
+    print("3. Exit")
+    choice = input("Enter choice (1-3): ").strip()
+    return choice
 
 # Check if directory exists
 if not os.path.exists(os.path.dirname(TOKEN_PATH)):
@@ -54,6 +70,11 @@ except git.exc.InvalidGitRepositoryError:
     print("Initializing Git repo...")
     repo = Repo.init(REPO_DIR)
     repo.git.branch("-M", "main")
+
+# Add .gitignore if not present to exclude build/dist
+if not os.path.exists(".gitignore"):
+    with open(".gitignore", "w") as f:
+        f.write(GITIGNORE_CONTENT)
 
 # Auto-setup global config if unset
 if not repo.config_reader("global").has_option("user", "name"):
@@ -118,52 +139,63 @@ if not previous_run:
     except GitCommandError as e:
         print("[WARNING] No files to commit after creation - empty directory:", e)
 
-# Stage and commit changes only for subsequent runs
-if previous_run:
-    print("Staging changes...")
-    repo.index.add("*")
-    if repo.index.diff("HEAD"):
-        # List changes
-        print("[DEBUG] Changes detected:")
-        print(repo.git.status())
-        print(repo.git.diff("--staged"))
-        
-        # Prompt user
-        apply_changes = input("Apply all changes? (y/n): ").strip().lower()
-        if apply_changes == 'y':
-            repo.index.commit("Backup run")
-            print("Changes committed!")
+# Menu loop
+while True:
+    choice = main_menu()
+    if choice == '1':
+        # Full backup
+        if previous_run:
+            print("Staging changes...")
+            repo.index.add("*")
+            if repo.index.diff("HEAD"):
+                print("[DEBUG] Changes detected:")
+                print(repo.git.status("--porcelain"))
+                apply_changes = input("Apply all changes? (y/n): ").strip().lower()
+                if apply_changes == 'y':
+                    repo.index.commit("Backup run")
+                    print("Changes committed!")
+                else:
+                    print("Changes not applied - skipping commit.")
+                    continue
+            else:
+                print("No changes to commit.")
+
+        # Push/pull logic
+        has_upstream = True
+        try:
+            repo.git.rev_parse("--abbrev-ref", "main@{upstream}")
+        except GitCommandError:
+            has_upstream = False
+
+        if not has_upstream:
+            print("Setting upstream...")
+            try:
+                repo.git.push("-u", "origin", "main")
+            except GitCommandError as e:
+                print("[ERROR] Push failed - retrying remote setup...")
+                repo.delete_remote("origin")
+                repo.create_remote("origin", url=f"https://{git_token}@github.com/{GITHUB_USERNAME}/{REPO_NAME}.git")
+                repo.git.push("-u", "origin", "main")
         else:
-            print("Changes not applied - skipping commit.")
+            print("Subsequent push: Syncing changes...")
+            repo.git.fetch("origin", "main")
+            try:
+                repo.git.pull("origin", "main")
+            except GitCommandError as e:
+                print("[WARNING] Pull failed - possible conflicts. Resolve manually:", e)
+                input("Press any key to exit")
+                exit(1)
+            repo.git.push("origin", "main")
+
+        print("Backup complete!")
+    elif choice == '2':
+        # View changes summary
+        print("[DEBUG] Current changes summary:")
+        print(repo.git.status("--porcelain"))
+    elif choice == '3':
+        break
     else:
-        print("No changes to commit.")
+        print("Invalid choice - try again.")
 
-# Check upstream and handle push/pull logic with retry
-has_upstream = True
-try:
-    repo.git.rev_parse("--abbrev-ref", "main@{upstream}")
-except GitCommandError:
-    has_upstream = False
-
-if not has_upstream:
-    print("Setting upstream...")
-    try:
-        repo.git.push("-u", "origin", "main")
-    except GitCommandError as e:
-        print("[ERROR] Push failed - retrying remote setup...")
-        repo.delete_remote("origin")
-        repo.create_remote("origin", url=f"https://{git_token}@github.com/{GITHUB_USERNAME}/{REPO_NAME}.git")
-        repo.git.push("-u", "origin", "main")
-else:
-    print("Subsequent push: Syncing changes...")
-    repo.git.fetch("origin", "main")
-    try:
-        repo.git.pull("origin", "main")
-    except GitCommandError as e:
-        print("[WARNING] Pull failed - possible conflicts. Resolve manually:", e)
-        input("Press any key to exit")
-        exit(1)
-    repo.git.push("origin", "main")
-
-print("Backup complete!")
+print("Exiting...")
 input("Press any key to exit")
