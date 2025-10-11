@@ -1,0 +1,1 @@
+    ECHO You entered: %base_project_directory% 
