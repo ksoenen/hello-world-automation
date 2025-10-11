@@ -123,18 +123,8 @@ if previous_run:
     print("Staging changes...")
     repo.index.add("*")
     if repo.index.diff("HEAD"):
-        # List changes
-        print("[DEBUG] Changes detected:")
-        print(repo.git.status())
-        print(repo.git.diff("--staged"))
-        
-        # Prompt user
-        apply_changes = input("Apply all changes? (y/n): ").strip().lower()
-        if apply_changes == 'y':
-            repo.index.commit("Backup run")
-            print("Changes committed!")
-        else:
-            print("Changes not applied - skipping commit.")
+        repo.index.commit("Backup run")
+        print("Changes committed!")
     else:
         print("No changes to commit.")
 
